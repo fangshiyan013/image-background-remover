@@ -12,7 +12,7 @@ export default function Home() {
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      setError("Please upload an image file");
+      setError("请上传图片文件");
       return;
     }
     fileRef.current = file;
@@ -32,7 +32,7 @@ export default function Home() {
       const blob = await res.blob();
       setResult(URL.createObjectURL(blob));
     } catch (e: any) {
-      setError(e.message);
+      setError(e.message ?? "处理失败，请重试");
     } finally {
       setLoading(false);
     }
@@ -72,9 +72,21 @@ export default function Home() {
       <div className="max-w-5xl mx-auto px-6 py-12">
         {/* Hero */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4">Remove Image Background</h2>
-          <p className="text-slate-400 text-lg">Upload any image and get a clean transparent background in seconds</p>
+          <h2 className="text-4xl font-bold mb-4">在线图片背景去除</h2>
+          <p className="text-slate-400 text-lg">上传图片，AI 自动识别主体并去除背景，几秒内完成</p>
         </div>
+
+        {/* 处理失败时显示重试按钮 */}
+        {original && !loading && !result && error && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={() => { setOriginal(null); setResult(null); setError(null); }}
+              className="bg-slate-700 hover:bg-slate-600 px-8 py-3 rounded-xl font-medium transition-colors"
+            >
+              重新上传
+            </button>
+          </div>
+        )}
 
         {/* Upload Zone */}
         {!original && (
@@ -88,8 +100,8 @@ export default function Home() {
           >
             <input type="file" accept="image/*" className="hidden" onChange={onFileChange} />
             <div className="text-5xl mb-4">🖼️</div>
-            <p className="text-xl font-medium mb-2">Drop your image here</p>
-            <p className="text-slate-400">or click to browse · PNG, JPG, WEBP · Max 10MB</p>
+            <p className="text-xl font-medium mb-2">拖拽图片到这里</p>
+            <p className="text-slate-400">或点击选择文件 · 支持 PNG、JPG、WEBP · 最大 10MB</p>
           </label>
         )}
 
@@ -97,7 +109,7 @@ export default function Home() {
         {loading && (
           <div className="text-center py-16">
             <div className="inline-block w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-slate-300">Removing background...</p>
+            <p className="text-slate-300">正在去除背景，请稍候...</p>
           </div>
         )}
 
@@ -108,45 +120,37 @@ export default function Home() {
           </div>
         )}
 
-        {/* Result */}
-        {original && !loading && (
+        {/* Result - 只在处理完成且有结果时显示 */}
+        {original && !loading && result && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-slate-700/50 rounded-2xl p-4">
-                <p className="text-sm text-slate-400 mb-3 font-medium">Original</p>
+                <p className="text-sm text-slate-400 mb-3 font-medium">原图</p>
                 <img src={original} alt="Original" className="w-full rounded-xl object-contain max-h-80" />
               </div>
               <div className="bg-slate-700/50 rounded-2xl p-4">
-                <p className="text-sm text-slate-400 mb-3 font-medium">Background Removed</p>
-                {result ? (
+                <p className="text-sm text-slate-400 mb-3 font-medium">去除背景后</p>
                   <div
                     className="rounded-xl overflow-hidden max-h-80 flex items-center justify-center"
                     style={{ background: "repeating-conic-gradient(#374151 0% 25%, #4b5563 0% 50%) 0 0 / 20px 20px" }}
                   >
                     <img src={result} alt="Result" className="max-h-80 object-contain" />
                   </div>
-                ) : (
-                  <div className="w-full h-64 rounded-xl bg-slate-600/50 flex items-center justify-center text-slate-500">
-                    {error ? "Failed" : "Waiting..."}
-                  </div>
-                )}
               </div>
             </div>
 
             <div className="flex gap-4 justify-center">
-              {result && (
-                <button
+              <button
                   onClick={downloadResult}
                   className="bg-violet-600 hover:bg-violet-500 px-8 py-3 rounded-xl font-medium transition-colors"
                 >
-                  ⬇️ Download PNG
+                  ⬇️ 下载 PNG
                 </button>
-              )}
               <button
                 onClick={() => { setOriginal(null); setResult(null); setError(null); }}
                 className="bg-slate-700 hover:bg-slate-600 px-8 py-3 rounded-xl font-medium transition-colors"
               >
-                Try Another Image
+                再试一张
               </button>
             </div>
           </div>
@@ -156,9 +160,9 @@ export default function Home() {
         {!original && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
             {[
-              { icon: "⚡", title: "Fast", desc: "Results in under 5 seconds" },
-              { icon: "🎯", title: "Accurate", desc: "AI-powered precise cutouts" },
-              { icon: "🆓", title: "Free to try", desc: "No signup required" },
+              { icon: "⚡", title: "极速处理", desc: "5 秒内出结果" },
+              { icon: "🎯", title: "精准抠图", desc: "AI 智能识别主体" },
+              { icon: "🆓", title: "免费使用", desc: "无需注册，打开即用" },
             ].map((f) => (
               <div key={f.title} className="bg-slate-700/30 rounded-2xl p-6 text-center">
                 <div className="text-3xl mb-3">{f.icon}</div>
