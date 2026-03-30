@@ -40,3 +40,4 @@ const API_URL = '/api/remove-bg'; // 改为你的 Worker 路径
 - `worker.js` - Cloudflare Worker 后端
 - `index.html` - 前端页面
 - `wrangler.toml` - Wrangler 配置文件
+<!-- Auto-deploy enabled -->
