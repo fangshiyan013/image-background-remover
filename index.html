@@ -240,6 +240,20 @@
       showUser();
     }
 
+    // 确保 Google 按钮加载
+    window.onload = function() {
+      if (typeof google !== 'undefined' && !currentUser) {
+        google.accounts.id.initialize({
+          client_id: '81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com',
+          callback: handleCredentialResponse
+        });
+        google.accounts.id.renderButton(
+          document.querySelector('.g_id_signin'),
+          { theme: 'outline', size: 'large', text: 'signin_with', locale: 'zh_CN' }
+        );
+      }
+    };
+
     uploadArea.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleFile);
 
