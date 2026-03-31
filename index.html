@@ -213,7 +213,8 @@
     // 显示用户信息
     function showUser() {
       if (currentUser) {
-        document.getElementById('userName').textContent = currentUser.name;
+        const displayName = currentUser.email.split('@')[0];
+        document.getElementById('userName').textContent = displayName;
         document.getElementById('userAvatar').src = currentUser.picture;
         userInfo.classList.add('show');
         loginOverlay.classList.add('hide');
