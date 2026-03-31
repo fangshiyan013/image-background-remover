@@ -213,8 +213,8 @@
     // 显示用户信息
     function showUser() {
       if (currentUser) {
-        const displayName = currentUser.email ? currentUser.email.split('@')[0] : 'User';
-        document.getElementById('userName').textContent = displayName;
+        // 强制使用纯 ASCII 字符
+        document.getElementById('userName').textContent = 'User';
         document.getElementById('userAvatar').src = currentUser.picture || '';
         userInfo.classList.add('show');
         loginOverlay.classList.add('hide');
