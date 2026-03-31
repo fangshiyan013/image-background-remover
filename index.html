@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>背景移除工具</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -14,6 +15,58 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+    }
+    .user-info {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 10px 20px;
+      border-radius: 50px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: none;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-info.show { display: flex; }
+    .user-info img {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+    .user-info span { font-size: 14px; color: #333; }
+    .logout-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 5px 15px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .login-overlay.hide { display: none; }
+    .login-box {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .login-box h2 {
+      margin-bottom: 20px;
+      color: #333;
     }
     .container {
       background: white;
@@ -84,6 +137,24 @@
   </style>
 </head>
 <body>
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-box">
+      <h2>🔐 请先登录</h2>
+      <p style="color: #666; margin-bottom: 20px;">使用 Google 账号登录以继续</p>
+      <div id="g_id_onload"
+           data-client_id="81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com"
+           data-callback="handleCredentialResponse">
+      </div>
+      <div class="g_id_signin" data-type="standard"></div>
+    </div>
+  </div>
+
+  <div class="user-info" id="userInfo">
+    <img id="userAvatar" src="" alt="用户头像">
+    <span id="userName"></span>
+    <button class="logout-btn" onclick="logout()">退出</button>
+  </div>
+
   <div class="container">
     <h1>🎨 背景移除工具</h1>
     
@@ -116,8 +187,11 @@
   </div>
 
   <script>
-    const API_URL = 'https://bg-remover.fangshiyan013.workers.dev'; // Worker API 路径
+    const API_URL = 'https://bg-remover.fangshiyan013.workers.dev';
     
+    let currentUser = null;
+    const loginOverlay = document.getElementById('loginOverlay');
+    const userInfo = document.getElementById('userInfo');
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
     const loading = document.getElementById('loading');
@@ -126,6 +200,45 @@
     const resultImg = document.getElementById('resultImg');
     const downloadBtn = document.getElementById('downloadBtn');
     const resetBtn = document.getElementById('resetBtn');
+
+    // Google 登录回调
+    function handleCredentialResponse(response) {
+      const payload = JSON.parse(atob(response.credential.split('.')[1]));
+      currentUser = {
+        name: payload.name,
+        email: payload.email,
+        picture: payload.picture,
+        token: response.credential
+      };
+      localStorage.setItem('user', JSON.stringify(currentUser));
+      showUser();
+    }
+
+    // 显示用户信息
+    function showUser() {
+      if (currentUser) {
+        document.getElementById('userName').textContent = currentUser.name;
+        document.getElementById('userAvatar').src = currentUser.picture;
+        userInfo.classList.add('show');
+        loginOverlay.classList.add('hide');
+      }
+    }
+
+    // 退出登录
+    function logout() {
+      currentUser = null;
+      localStorage.removeItem('user');
+      userInfo.classList.remove('show');
+      loginOverlay.classList.remove('hide');
+      reset();
+    }
+
+    // 检查登录状态
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      currentUser = JSON.parse(savedUser);
+      showUser();
+    }
 
     uploadArea.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleFile);
@@ -166,6 +279,9 @@
       try {
         const response = await fetch(API_URL, {
           method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentUser.token}`
+          },
           body: formData,
         });
 
