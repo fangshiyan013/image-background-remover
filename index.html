@@ -237,25 +237,30 @@
     }
 
     // 确保 Google 按钮加载
-    window.onload = function() {
-      if (typeof google !== 'undefined' && !currentUser) {
-        google.accounts.id.initialize({
-          client_id: '81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com',
-          callback: handleCredentialResponse
-        });
-        google.accounts.id.renderButton(
-          document.getElementById('googleButton'),
-          { 
-            theme: 'outline', 
-            size: 'large', 
-            text: 'signin_with', 
-            locale: 'zh_CN',
-            width: 300
-          }
-        );
-        google.accounts.id.prompt();
+    function waitForGoogle() {
+      if (window.google && google.accounts && google.accounts.id) {
+        if (!currentUser) {
+          google.accounts.id.initialize({
+            client_id: '81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com',
+            callback: handleCredentialResponse
+          });
+          google.accounts.id.renderButton(
+            document.getElementById('googleButton'),
+            { 
+              theme: 'outline', 
+              size: 'large', 
+              text: 'signin_with', 
+              locale: 'zh_CN',
+              width: 300
+            }
+          );
+          google.accounts.id.prompt();
+        }
+      } else {
+        setTimeout(waitForGoogle, 100);
       }
-    };
+    }
+    waitForGoogle();
 
     uploadArea.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleFile);
