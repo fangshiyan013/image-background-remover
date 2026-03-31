@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>背景移除工具</title>
+  <title>Background Remover</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -139,45 +139,45 @@
 <body>
   <div class="login-overlay" id="loginOverlay">
     <div class="login-box">
-      <h2>🔐 请先登录</h2>
-      <p style="color: #666; margin-bottom: 20px;">使用 Google 账号登录以继续</p>
+      <h2>🔐 Please Login</h2>
+      <p style="color: #666; margin-bottom: 20px;">Sign in with your Google account to continue</p>
       <div id="googleButton"></div>
     </div>
   </div>
 
   <div class="user-info" id="userInfo">
-    <img id="userAvatar" src="" alt="用户头像">
+    <img id="userAvatar" src="" alt="User Avatar">
     <span id="userName"></span>
-    <button class="logout-btn" onclick="logout()">退出</button>
+    <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
 
   <div class="container">
-    <h1>🎨 背景移除工具</h1>
+    <h1>🎨 Background Remover</h1>
     
     <div class="upload-area" id="uploadArea">
-      <p style="font-size: 20px; color: #667eea; margin-bottom: 10px;">📤 点击或拖拽上传图片</p>
-      <p style="color: #999;">支持 JPG、PNG 格式</p>
+      <p style="font-size: 20px; color: #667eea; margin-bottom: 10px;">📤 Click or drag to upload image</p>
+      <p style="color: #999;">Support JPG, PNG format</p>
       <input type="file" id="fileInput" accept="image/*">
     </div>
 
     <div class="loading" id="loading" style="display: none;">
-      ⏳ 正在处理中...
+      ⏳ Processing...
     </div>
 
     <div class="result" id="result">
       <div class="images">
         <div class="image-box">
-          <h3>原图</h3>
-          <img id="originalImg" alt="原图">
+          <h3>Original</h3>
+          <img id="originalImg" alt="Original">
         </div>
         <div class="image-box">
-          <h3>去除背景后</h3>
-          <img id="resultImg" alt="处理结果">
+          <h3>Background Removed</h3>
+          <img id="resultImg" alt="Result">
         </div>
       </div>
       <div style="text-align: center;">
-        <button class="btn" id="downloadBtn">💾 下载图片</button>
-        <button class="btn" id="resetBtn">🔄 重新上传</button>
+        <button class="btn" id="downloadBtn">💾 Download</button>
+        <button class="btn" id="resetBtn">🔄 Upload Again</button>
       </div>
     </div>
   </div>
@@ -250,7 +250,7 @@
               theme: 'outline', 
               size: 'large', 
               text: 'signin_with', 
-              locale: 'zh_CN',
+              locale: 'en',
               width: 300
             }
           );
@@ -323,7 +323,7 @@
         loading.style.display = 'none';
         result.classList.add('show');
       } catch (error) {
-        alert('处理失败: ' + error.message);
+        alert('Processing failed: ' + error.message);
         reset();
       }
     }
