@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>测试 Google 登录</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f0f0f0;">
+  <div style="background: white; padding: 40px; border-radius: 10px; text-align: center;">
+    <h2>Google 登录测试</h2>
+    <div id="g_id_onload"
+         data-client_id="81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse">
+    </div>
+    <div id="buttonDiv"></div>
+    <p id="result" style="margin-top: 20px;"></p>
+  </div>
+
+  <script>
+    function handleCredentialResponse(response) {
+      const payload = JSON.parse(atob(response.credential.split('.')[1]));
+      document.getElementById('result').innerHTML = 
+        '登录成功！<br>姓名: ' + payload.name + '<br>邮箱: ' + payload.email;
+    }
+
+    window.onload = function() {
+      google.accounts.id.initialize({
+        client_id: '81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com',
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('buttonDiv'),
+        { theme: 'outline', size: 'large', text: 'signin_with', locale: 'zh_CN' }
+      );
+    };
+  </script>
+</body>
+</html>
