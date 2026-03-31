@@ -141,11 +141,7 @@
     <div class="login-box">
       <h2>🔐 请先登录</h2>
       <p style="color: #666; margin-bottom: 20px;">使用 Google 账号登录以继续</p>
-      <div id="g_id_onload"
-           data-client_id="81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com"
-           data-callback="handleCredentialResponse">
-      </div>
-      <div class="g_id_signin" data-type="standard"></div>
+      <div id="googleButton"></div>
     </div>
   </div>
 
@@ -248,9 +244,16 @@
           callback: handleCredentialResponse
         });
         google.accounts.id.renderButton(
-          document.querySelector('.g_id_signin'),
-          { theme: 'outline', size: 'large', text: 'signin_with', locale: 'zh_CN' }
+          document.getElementById('googleButton'),
+          { 
+            theme: 'outline', 
+            size: 'large', 
+            text: 'signin_with', 
+            locale: 'zh_CN',
+            width: 300
+          }
         );
+        google.accounts.id.prompt();
       }
     };
 
