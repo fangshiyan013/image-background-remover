@@ -201,7 +201,7 @@
     function handleCredentialResponse(response) {
       const payload = JSON.parse(atob(response.credential.split('.')[1]));
       currentUser = {
-        name: payload.name,
+        name: payload.name || payload.email.split('@')[0],
         email: payload.email,
         picture: payload.picture,
         token: response.credential
