@@ -213,9 +213,9 @@
     // 显示用户信息
     function showUser() {
       if (currentUser) {
-        const displayName = currentUser.email.split('@')[0];
+        const displayName = currentUser.email ? currentUser.email.split('@')[0] : 'User';
         document.getElementById('userName').textContent = displayName;
-        document.getElementById('userAvatar').src = currentUser.picture;
+        document.getElementById('userAvatar').src = currentUser.picture || '';
         userInfo.classList.add('show');
         loginOverlay.classList.add('hide');
       }
@@ -234,8 +234,19 @@
     // 检查登录状态
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
-      currentUser = JSON.parse(savedUser);
-      showUser();
+      try {
+        currentUser = JSON.parse(savedUser);
+        // 确保 email 字段存在
+        if (currentUser && currentUser.email) {
+          showUser();
+        } else {
+          localStorage.removeItem('user');
+          currentUser = null;
+        }
+      } catch (e) {
+        localStorage.removeItem('user');
+        currentUser = null;
+      }
     }
 
     // 确保 Google 按钮加载
