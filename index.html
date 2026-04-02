@@ -1,354 +1,436 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Background Remover</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .user-info {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: white;
-      padding: 10px 20px;
-      border-radius: 50px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      display: none;
-      align-items: center;
-      gap: 10px;
-    }
-    .user-info.show { display: flex; }
-    .user-info img {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-    }
-    .user-info span { font-size: 14px; color: #333; }
-    .logout-btn {
-      background: #f44336;
-      color: white;
-      border: none;
-      padding: 5px 15px;
-      border-radius: 20px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    .login-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    .login-overlay.hide { display: none; }
-    .login-box {
-      background: white;
-      padding: 40px;
-      border-radius: 20px;
-      text-align: center;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-    .login-box h2 {
-      margin-bottom: 20px;
-      color: #333;
-    }
-    .container {
-      background: white;
-      border-radius: 20px;
-      padding: 40px;
-      max-width: 900px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-    h1 {
-      text-align: center;
-      color: #333;
-      margin-bottom: 30px;
-    }
-    .upload-area {
-      border: 3px dashed #667eea;
-      border-radius: 10px;
-      padding: 60px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    .upload-area:hover { background: #f8f9ff; }
-    .upload-area.dragover { background: #e8ebff; border-color: #764ba2; }
-    input[type="file"] { display: none; }
-    .btn {
-      background: #667eea;
-      color: white;
-      border: none;
-      padding: 12px 30px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-      margin-top: 20px;
-    }
-    .btn:hover { background: #764ba2; }
-    .btn:disabled { background: #ccc; cursor: not-allowed; }
-    .result { margin-top: 40px; display: none; }
-    .result.show { display: block; }
-    .images {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-top: 20px;
-    }
-    .image-box {
-      text-align: center;
-    }
-    .image-box img {
-      max-width: 100%;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .image-box h3 {
-      margin-top: 10px;
-      color: #666;
-      font-size: 14px;
-    }
-    .loading {
-      text-align: center;
-      color: #667eea;
-      font-size: 18px;
-      margin-top: 20px;
-    }
-    @media (max-width: 768px) {
-      .images { grid-template-columns: 1fr; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Background Remover - Remove Image Backgrounds Instantly</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;justify-content:flex-end;align-items:center;padding:12px 24px;gap:12px}
+.credits-badge{background:#22c55e;color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;display:none}
+.credits-badge.zero{background:#ef4444}
+.credits-badge.show{display:inline-block}
+.user-info{background:white;padding:8px 18px;border-radius:50px;box-shadow:0 4px 12px rgba(0,0,0,.15);display:none;align-items:center;gap:10px}
+.user-info.show{display:flex}
+.user-info img{width:28px;height:28px;border-radius:50%}
+.user-info span{font-size:13px;color:#333}
+.logout-btn{background:#f44336;color:white;border:none;padding:4px 12px;border-radius:16px;cursor:pointer;font-size:12px}
+.login-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:200}
+.login-overlay.hide{display:none}
+.login-box{background:white;padding:48px 40px;border-radius:20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:380px;width:90%}
+.login-box h2{margin-bottom:8px;color:#333;font-size:22px}
+.login-box p{color:#666;margin-bottom:24px;font-size:14px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:300;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal-box{background:white;padding:40px;border-radius:20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:420px;width:90%;transform:scale(.9);transition:transform .3s}
+.modal-overlay.show .modal-box{transform:scale(1)}
+.modal-box h2{font-size:22px;margin-bottom:12px;color:#333}
+.modal-box p{color:#666;margin-bottom:24px;font-size:15px}
+.modal-actions{display:flex;flex-direction:column;gap:12px}
+.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;padding:12px 28px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;transition:opacity .2s}
+.btn-primary:hover{opacity:.9}
+.btn-primary:disabled{background:#ccc;cursor:not-allowed;opacity:1}
+.waitlist-row{display:flex;gap:8px}
+.waitlist-row input{flex:1;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;outline:none}
+.waitlist-row input:focus{border-color:#667eea}
+.waitlist-row button{background:#667eea;color:white;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap}
+.page{padding-top:70px}
+.container{background:white;border-radius:20px;padding:40px;max-width:900px;margin:0 auto 40px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+h1{text-align:center;color:#333;margin-bottom:8px;font-size:28px}
+.subtitle{text-align:center;color:#888;margin-bottom:30px;font-size:15px}
+.upload-area{border:3px dashed #667eea;border-radius:12px;padding:60px 20px;text-align:center;cursor:pointer;transition:all .3s}
+.upload-area:hover,.upload-area.dragover{background:#f8f9ff;border-color:#764ba2}
+.upload-area p{font-size:18px;color:#667eea;margin-bottom:8px}
+.upload-area small{color:#aaa;font-size:13px}
+input[type=file]{display:none}
+.loading{text-align:center;color:#667eea;font-size:18px;padding:40px 0;display:none}
+.spinner{display:inline-block;width:32px;height:32px;border:3px solid #e0e0e0;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.result{display:none;margin-top:30px}
+.result.show{display:block}
+.images{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.image-box{text-align:center}
+.image-box img{max-width:100%;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.image-box h3{margin-top:8px;color:#666;font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+.result-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-secondary{background:white;color:#667eea;border:2px solid #667eea;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s}
+.btn-secondary:hover{background:#667eea;color:white}
+.credits-info{text-align:center;margin-top:16px;font-size:13px;color:#888}
+.pricing-section{background:white;border-radius:20px;padding:48px 40px;max-width:900px;margin:0 auto 40px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.pricing-section h2{text-align:center;font-size:26px;color:#333;margin-bottom:8px}
+.pricing-section .pricing-sub{text-align:center;color:#888;margin-bottom:36px;font-size:15px}
+.free-banner{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:12px;padding:18px 24px;text-align:center;margin-bottom:28px;font-size:14px;color:#166534}
+.free-banner strong{font-size:16px}
+.plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:36px}
+.plan-card{border:1.5px solid #e5e7eb;border-radius:14px;padding:24px;text-align:center;position:relative;transition:box-shadow .2s}
+.plan-card:hover{box-shadow:0 8px 24px rgba(0,0,0,.1)}
+.plan-card.popular{border-color:#667eea;box-shadow:0 4px 20px rgba(102,126,234,.2)}
+.popular-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:4px 16px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
+.plan-name{font-size:18px;font-weight:700;color:#333;margin-bottom:4px}
+.plan-price{font-size:28px;font-weight:800;color:#667eea;margin:12px 0 4px}
+.plan-price span{font-size:14px;font-weight:400;color:#888}
+.plan-features{list-style:none;text-align:left;margin:16px 0 20px;font-size:13px;color:#555}
+.plan-features li{padding:4px 0;padding-left:20px;position:relative}
+.plan-features li::before{content:"✓";position:absolute;left:0;color:#22c55e;font-weight:700}
+.btn-coming-soon{background:#f3f4f6;color:#9ca3af;border:none;padding:10px 20px;border-radius:8px;cursor:not-allowed;font-size:13px;font-weight:600;width:100%}
+.packs-section{border-top:1.5px solid #f3f4f6;padding-top:28px}
+.packs-section h3{text-align:center;font-size:17px;color:#333;margin-bottom:6px}
+.packs-section p{text-align:center;color:#888;font-size:13px;margin-bottom:20px}
+.packs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.pack-card{border:1.5px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center}
+.pack-credits{font-size:20px;font-weight:700;color:#333}
+.pack-price{font-size:22px;font-weight:800;color:#667eea;margin:6px 0}
+.pack-per{font-size:11px;color:#aaa}
+.notify-row{display:flex;gap:10px;max-width:480px;margin:0 auto}
+.notify-row input{flex:1;padding:11px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;outline:none}
+.notify-row input:focus{border-color:#667eea}
+.notify-row button{background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;padding:11px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap}
+.faq-section{background:white;border-radius:20px;padding:48px 40px;max-width:900px;margin:0 auto 40px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.faq-section h2{text-align:center;font-size:26px;color:#333;margin-bottom:32px}
+.faq-item{border-bottom:1.5px solid #f3f4f6}
+.faq-item:last-child{border-bottom:none}
+.faq-q{width:100%;background:none;border:none;text-align:left;padding:18px 0;font-size:15px;font-weight:600;color:#333;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.faq-q:hover{color:#667eea}
+.faq-icon{font-size:18px;color:#667eea;flex-shrink:0;transition:transform .3s}
+.faq-item.open .faq-icon{transform:rotate(45deg)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .3s ease;font-size:14px;color:#666;line-height:1.7}
+.faq-item.open .faq-a{max-height:200px;padding-bottom:16px}
+footer{text-align:center;color:rgba(255,255,255,.7);padding:20px;font-size:13px}
+footer a{color:rgba(255,255,255,.9);text-decoration:none}
+footer a:hover{text-decoration:underline}
+@media(max-width:700px){.plans-grid,.packs-grid{grid-template-columns:1fr}.images{grid-template-columns:1fr}.notify-row{flex-direction:column}.container,.pricing-section,.faq-section{padding:28px 20px}}
+</style>
 </head>
 <body>
-  <div class="login-overlay" id="loginOverlay">
-    <div class="login-box">
-      <h2>🔐 Please Login</h2>
-      <p style="color: #666; margin-bottom: 20px;">Sign in with your Google account to continue</p>
-      <div id="googleButton"></div>
-    </div>
-  </div>
-
+<div class="topbar">
+  <span class="credits-badge" id="creditsBadge">Credits: 3</span>
   <div class="user-info" id="userInfo">
-    <img id="userAvatar" src="" alt="User Avatar">
+    <img id="userAvatar" src="" alt="">
     <span id="userName"></span>
     <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
+</div>
 
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>Welcome!</h2>
+    <p>Sign in to get 3 free credits — no credit card required.</p>
+    <div id="googleButton"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="noCreditsModal">
+  <div class="modal-box">
+    <h2>You've used all your credits 🎉</h2>
+    <p>Looks like you're enjoying the tool! Upgrade to continue removing backgrounds.</p>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="viewPlans()">View Plans</button>
+      <div class="waitlist-row">
+        <input type="email" id="modalEmail" placeholder="your@email.com">
+        <button onclick="joinWaitlist('modalEmail')">Notify Me</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
   <div class="container">
     <h1>🎨 Background Remover</h1>
-    
+    <p class="subtitle">Remove image backgrounds instantly with AI</p>
     <div class="upload-area" id="uploadArea">
-      <p style="font-size: 20px; color: #667eea; margin-bottom: 10px;">📤 Click or drag to upload image</p>
-      <p style="color: #999;">Support JPG, PNG format</p>
-      <input type="file" id="fileInput" accept="image/*">
+      <p>📤 Click or drag to upload image</p>
+      <small>Supports JPG, PNG</small>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png">
     </div>
-
-    <div class="loading" id="loading" style="display: none;">
-      ⏳ Processing...
+    <div class="loading" id="loading">
+      <div class="spinner"></div><br>Processing your image...
     </div>
-
     <div class="result" id="result">
       <div class="images">
         <div class="image-box">
-          <h3>Original</h3>
           <img id="originalImg" alt="Original">
+          <h3>Original</h3>
         </div>
         <div class="image-box">
-          <h3>Background Removed</h3>
           <img id="resultImg" alt="Result">
+          <h3>Background Removed</h3>
         </div>
       </div>
-      <div style="text-align: center;">
-        <button class="btn" id="downloadBtn">💾 Download</button>
-        <button class="btn" id="resetBtn">🔄 Upload Again</button>
+      <div class="result-actions">
+        <button class="btn-primary" id="downloadBtn">💾 Download PNG</button>
+        <button class="btn-secondary" id="resetBtn">🔄 Upload Another</button>
+      </div>
+      <p class="credits-info" id="creditsInfo"></p>
+    </div>
+  </div>
+
+  <div class="pricing-section" id="pricing">
+    <h2>Simple, transparent pricing</h2>
+    <p class="pricing-sub">Start free. Scale when you're ready.</p>
+    <div class="free-banner">
+      🎁 <strong>New here?</strong> Sign up and get 3 free credits — no credit card required.
+    </div>
+    <div class="plans-grid">
+      <div class="plan-card">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price">$4.99<span>/month</span></div>
+        <ul class="plan-features">
+          <li>50 removals/month</li>
+          <li>High-res downloads</li>
+          <li>No watermark</li>
+          <li>Standard support</li>
+        </ul>
+        <button class="btn-coming-soon">Coming Soon</button>
+      </div>
+      <div class="plan-card popular">
+        <div class="popular-badge">🔥 Most Popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">$9.99<span>/month</span></div>
+        <ul class="plan-features">
+          <li>150 removals/month</li>
+          <li>Priority processing</li>
+          <li>API access</li>
+          <li>Email support</li>
+        </ul>
+        <button class="btn-coming-soon">Coming Soon</button>
+      </div>
+      <div class="plan-card">
+        <div class="plan-name">Team</div>
+        <div class="plan-price">$24.99<span>/month</span></div>
+        <ul class="plan-features">
+          <li>500 removals/month</li>
+          <li>Bulk processing</li>
+          <li>Advanced API</li>
+          <li>Priority support</li>
+        </ul>
+        <button class="btn-coming-soon">Coming Soon</button>
+      </div>
+    </div>
+    <div class="packs-section">
+      <h3>Credit Packs</h3>
+      <p>One-time purchase — credits never expire. Top up anytime.</p>
+      <div class="packs-grid">
+        <div class="pack-card">
+          <div class="pack-credits">15 credits</div>
+          <div class="pack-price">$1.99</div>
+          <div class="pack-per">~$0.13/image</div>
+          <button class="btn-coming-soon" style="margin-top:12px">Coming Soon</button>
+        </div>
+        <div class="pack-card">
+          <div class="pack-credits">50 credits</div>
+          <div class="pack-price">$4.99</div>
+          <div class="pack-per">~$0.10/image</div>
+          <button class="btn-coming-soon" style="margin-top:12px">Coming Soon</button>
+        </div>
+        <div class="pack-card">
+          <div class="pack-credits">120 credits</div>
+          <div class="pack-price">$9.99</div>
+          <div class="pack-per">~$0.08/image</div>
+          <button class="btn-coming-soon" style="margin-top:12px">Coming Soon</button>
+        </div>
+      </div>
+      <div class="notify-row">
+        <input type="email" id="notifyEmail" placeholder="Enter your email to get notified">
+        <button onclick="joinWaitlist('notifyEmail')">Get Notified When Payments Go Live</button>
       </div>
     </div>
   </div>
 
-  <script>
-    const API_URL = 'https://bg-remover.fangshiyan013.workers.dev';
-    
-    let currentUser = null;
-    const loginOverlay = document.getElementById('loginOverlay');
-    const userInfo = document.getElementById('userInfo');
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-    const loading = document.getElementById('loading');
-    const result = document.getElementById('result');
-    const originalImg = document.getElementById('originalImg');
-    const resultImg = document.getElementById('resultImg');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const resetBtn = document.getElementById('resetBtn');
+  <div class="faq-section">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">What is a credit? <span class="faq-icon">+</span></button>
+      <div class="faq-a">One credit = one background removal. Each time you process an image, one credit is deducted. Credits from signup never expire. Subscription credits reset monthly.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">Do I need a credit card to sign up? <span class="faq-icon">+</span></button>
+      <div class="faq-a">No. Sign up with your Google account and get 3 free credits instantly — no payment info required.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">What is the difference between a subscription and credit packs? <span class="faq-icon">+</span></button>
+      <div class="faq-a">Subscriptions give you a fixed number of credits each month at a lower per-image cost — great for regular use. Credit packs are one-time purchases that never expire — perfect for occasional or unpredictable usage. You can combine both.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">Do unused subscription credits roll over? <span class="faq-icon">+</span></button>
+      <div class="faq-a">No — subscription credits reset at the start of each billing cycle. We recommend upgrading your plan if you consistently run out before month end.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">Can I cancel my subscription anytime? <span class="faq-icon">+</span></button>
+      <div class="faq-a">Yes, cancel anytime from your account settings. You'll keep access until the end of your current billing period.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">Do purchased credits expire? <span class="faq-icon">+</span></button>
+      <div class="faq-a">No. Credit packs never expire — use them whenever you need.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">What image formats are supported? <span class="faq-icon">+</span></button>
+      <div class="faq-a">We support JPG and PNG input. Output is always a PNG file with a transparent background.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">Is my data safe? <span class="faq-icon">+</span></button>
+      <div class="faq-a">Your images are processed securely and automatically deleted after processing. We do not store, sell, or share your images.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">Do you offer an API? <span class="faq-icon">+</span></button>
+      <div class="faq-a">Yes — API access is available on Pro and Team plans. Documentation coming soon.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">What payment methods do you accept? <span class="faq-icon">+</span></button>
+      <div class="faq-a">PayPal is coming soon. More payment options will follow.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">What is your refund policy? <span class="faq-icon">+</span></button>
+      <div class="faq-a">Unused credit packs may be refunded within 7 days of purchase. Subscription fees are non-refundable once the billing period has started. Contact us at support@image-background-remover.shop</div>
+    </div>
+  </div>
 
-    // Google 登录回调
-    function handleCredentialResponse(response) {
-      const payload = JSON.parse(atob(response.credential.split('.')[1]));
-      currentUser = {
-        name: payload.name || payload.email.split('@')[0],
-        email: payload.email,
-        picture: payload.picture,
-        token: response.credential
-      };
-      localStorage.setItem('user', JSON.stringify(currentUser));
-      showUser();
-    }
+  <footer>
+    <p>© 2026 Background Remover. All rights reserved. &nbsp;|&nbsp; <a href="mailto:support@image-background-remover.shop">support@image-background-remover.shop</a></p>
+  </footer>
+</div>
 
-    // 显示用户信息
-    function showUser() {
-      if (currentUser) {
-        // 强制使用纯 ASCII 字符
-        document.getElementById('userName').textContent = 'User';
-        document.getElementById('userAvatar').src = currentUser.picture || '';
-        userInfo.classList.add('show');
-        loginOverlay.classList.add('hide');
-      }
-    }
+<script>
+const API_URL = 'https://bg-remover.fangshiyan013.workers.dev';
+let currentUser = null;
+let resultBlobUrl = null;
 
-    // 退出登录
-    function logout() {
-      currentUser = null;
-      localStorage.removeItem('user');
-      userInfo.classList.remove('show');
-      loginOverlay.classList.remove('hide');
-      reset();
-      location.reload(); // 刷新页面清除缓存
-    }
+const loginOverlay = document.getElementById('loginOverlay');
+const userInfo = document.getElementById('userInfo');
+const creditsBadge = document.getElementById('creditsBadge');
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const loading = document.getElementById('loading');
+const result = document.getElementById('result');
+const noCreditsModal = document.getElementById('noCreditsModal');
 
-    // 检查登录状态
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        currentUser = JSON.parse(savedUser);
-        // 确保 email 字段存在
-        if (currentUser && currentUser.email) {
-          showUser();
-        } else {
-          localStorage.removeItem('user');
-          currentUser = null;
-        }
-      } catch (e) {
-        localStorage.removeItem('user');
-        currentUser = null;
-      }
-    }
+function updateCreditsBadge(n) {
+  creditsBadge.textContent = 'Credits: ' + n;
+  creditsBadge.className = 'credits-badge show' + (n <= 0 ? ' zero' : '');
+}
 
-    // 确保 Google 按钮加载
-    function waitForGoogle() {
-      if (window.google && google.accounts && google.accounts.id) {
-        if (!currentUser) {
-          google.accounts.id.initialize({
-            client_id: '81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com',
-            callback: handleCredentialResponse
-          });
-          google.accounts.id.renderButton(
-            document.getElementById('googleButton'),
-            { 
-              theme: 'outline', 
-              size: 'large', 
-              text: 'signin_with', 
-              locale: 'en',
-              width: 300
-            }
-          );
-          google.accounts.id.prompt();
-        }
-      } else {
-        setTimeout(waitForGoogle, 100);
-      }
-    }
-    waitForGoogle();
+function showUser() {
+  document.getElementById('userAvatar').src = currentUser.picture || '';
+  document.getElementById('userName').textContent = currentUser.email ? currentUser.email.split('@')[0] : 'User';
+  userInfo.classList.add('show');
+  loginOverlay.classList.add('hide');
+  fetchCredits();
+}
 
-    uploadArea.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', handleFile);
-
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.classList.add('dragover');
+async function fetchCredits() {
+  try {
+    const res = await fetch(API_URL + '/api/user/credits', {
+      headers: { 'Authorization': 'Bearer ' + currentUser.token }
     });
-
-    uploadArea.addEventListener('dragleave', () => {
-      uploadArea.classList.remove('dragover');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadArea.classList.remove('dragover');
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) {
-        processImage(file);
-      }
-    });
-
-    function handleFile(e) {
-      const file = e.target.files[0];
-      if (file) processImage(file);
+    if (res.ok) {
+      const data = await res.json();
+      updateCreditsBadge(data.credits);
     }
+  } catch(e) {}
+}
 
-    async function processImage(file) {
-      uploadArea.style.display = 'none';
-      loading.style.display = 'block';
-      result.classList.remove('show');
+function handleCredentialResponse(response) {
+  const payload = JSON.parse(atob(response.credential.split('.')[1]));
+  currentUser = { name: payload.name, email: payload.email, picture: payload.picture, token: response.credential };
+  localStorage.setItem('user', JSON.stringify(currentUser));
+  showUser();
+}
 
-      originalImg.src = URL.createObjectURL(file);
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('user');
+  userInfo.classList.remove('show');
+  creditsBadge.classList.remove('show');
+  loginOverlay.classList.remove('hide');
+  reset();
+}
 
-      const formData = new FormData();
-      formData.append('image', file);
+const saved = localStorage.getItem('user');
+if (saved) {
+  try {
+    const u = JSON.parse(saved);
+    if (u && u.email && u.token) { currentUser = u; showUser(); }
+    else localStorage.removeItem('user');
+  } catch(e) { localStorage.removeItem('user'); }
+}
 
-      try {
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${currentUser.token}`
-          },
-          body: formData,
-        });
+function waitForGoogle() {
+  if (window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.initialize({ client_id: '81489474996-f48cbi7bjgvfnstvhifrd23h8o10ki3j.apps.googleusercontent.com', callback: handleCredentialResponse });
+    google.accounts.id.renderButton(document.getElementById('googleButton'), { theme: 'outline', size: 'large', width: 280 });
+    if (!currentUser) google.accounts.id.prompt();
+  } else { setTimeout(waitForGoogle, 100); }
+}
+waitForGoogle();
 
-        if (!response.ok) throw new Error('处理失败');
+uploadArea.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files[0]) processImage(e.target.files[0]); });
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault(); uploadArea.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.match(/image\/(jpeg|png)/)) processImage(f);
+});
 
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        resultImg.src = url;
-        
-        downloadBtn.onclick = () => {
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'removed-bg.png';
-          a.click();
-        };
-
-        loading.style.display = 'none';
-        result.classList.add('show');
-      } catch (error) {
-        alert('Processing failed: ' + error.message);
-        reset();
-      }
+async function processImage(file) {
+  if (!currentUser) { loginOverlay.classList.remove('hide'); return; }
+  uploadArea.style.display = 'none';
+  loading.style.display = 'block';
+  result.classList.remove('show');
+  document.getElementById('originalImg').src = URL.createObjectURL(file);
+  const fd = new FormData();
+  fd.append('image', file);
+  try {
+    const res = await fetch(API_URL, { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentUser.token }, body: fd });
+    if (res.status === 402) {
+      const data = await res.json();
+      if (data.code === 'NO_CREDITS') { showNoCreditsModal(); reset(); return; }
     }
+    if (!res.ok) { alert('Processing failed. Please try again.'); reset(); return; }
+    const remaining = res.headers.get('X-Credits-Remaining');
+    if (remaining !== null) updateCreditsBadge(parseInt(remaining));
+    if (resultBlobUrl) URL.revokeObjectURL(resultBlobUrl);
+    resultBlobUrl = URL.createObjectURL(await res.blob());
+    document.getElementById('resultImg').src = resultBlobUrl;
+    document.getElementById('downloadBtn').onclick = () => { const a = document.createElement('a'); a.href = resultBlobUrl; a.download = 'removed-bg.png'; a.click(); };
+    if (remaining !== null) document.getElementById('creditsInfo').textContent = parseInt(remaining) + ' credits remaining';
+    loading.style.display = 'none';
+    result.classList.add('show');
+  } catch(e) { alert('Network error. Please try again.'); reset(); }
+}
 
-    function reset() {
-      uploadArea.style.display = 'block';
-      loading.style.display = 'none';
-      result.classList.remove('show');
-      fileInput.value = '';
-    }
+function reset() {
+  uploadArea.style.display = 'block';
+  loading.style.display = 'none';
+  result.classList.remove('show');
+  fileInput.value = '';
+}
+document.getElementById('resetBtn').addEventListener('click', reset);
 
-    resetBtn.addEventListener('click', reset);
-  </script>
+function showNoCreditsModal() { noCreditsModal.classList.add('show'); }
+function hideNoCreditsModal() { noCreditsModal.classList.remove('show'); }
+noCreditsModal.addEventListener('click', e => { if (e.target === noCreditsModal) hideNoCreditsModal(); });
+
+function viewPlans() {
+  hideNoCreditsModal();
+  document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' });
+}
+
+function joinWaitlist(inputId) {
+  const email = document.getElementById(inputId).value.trim();
+  if (!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
+  alert("You're on the list! We'll notify you at " + email + " when payments go live.");
+  document.getElementById(inputId).value = '';
+}
+
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+</script>
 </body>
 </html>
