@@ -182,7 +182,7 @@ footer a:hover{text-decoration:underline}
           <li>No watermark</li>
           <li>Standard support</li>
         </ul>
-        <button class="btn-coming-soon">Coming Soon</button>
+        <button class="btn-subscribe btn-primary" data-plan="starter" onclick="startSubscription('starter')">Subscribe</button>
       </div>
       <div class="plan-card popular">
         <div class="popular-badge">🔥 Most Popular</div>
@@ -194,7 +194,7 @@ footer a:hover{text-decoration:underline}
           <li>API access</li>
           <li>Email support</li>
         </ul>
-        <button class="btn-coming-soon">Coming Soon</button>
+        <button class="btn-subscribe btn-primary" data-plan="pro" onclick="startSubscription('pro')">Subscribe</button>
       </div>
       <div class="plan-card">
         <div class="plan-name">Team</div>
@@ -205,7 +205,7 @@ footer a:hover{text-decoration:underline}
           <li>Advanced API</li>
           <li>Priority support</li>
         </ul>
-        <button class="btn-coming-soon">Coming Soon</button>
+        <button class="btn-subscribe btn-primary" data-plan="team" onclick="startSubscription('team')">Subscribe</button>
       </div>
     </div>
     <div class="packs-section">
@@ -216,22 +216,22 @@ footer a:hover{text-decoration:underline}
           <div class="pack-credits">15 credits</div>
           <div class="pack-price">$1.99</div>
           <div class="pack-per">~$0.13/image</div>
-          <button class="btn-coming-soon" style="margin-top:12px">Coming Soon</button>
+          <div id="paypal-pack-15" style="margin-top:12px"></div>
         </div>
         <div class="pack-card">
           <div class="pack-credits">50 credits</div>
           <div class="pack-price">$4.99</div>
           <div class="pack-per">~$0.10/image</div>
-          <button class="btn-coming-soon" style="margin-top:12px">Coming Soon</button>
+          <div id="paypal-pack-50" style="margin-top:12px"></div>
         </div>
         <div class="pack-card">
           <div class="pack-credits">120 credits</div>
           <div class="pack-price">$9.99</div>
           <div class="pack-per">~$0.08/image</div>
-          <button class="btn-coming-soon" style="margin-top:12px">Coming Soon</button>
+          <div id="paypal-pack-120" style="margin-top:12px"></div>
         </div>
       </div>
-      <div class="notify-row">
+      <div class="notify-row" style="margin-top:16px">
         <input type="email" id="notifyEmail" placeholder="Enter your email to get notified">
         <button onclick="joinWaitlist('notifyEmail')">Get Notified When Payments Go Live</button>
       </div>
@@ -430,6 +430,115 @@ function toggleFaq(btn) {
   const isOpen = item.classList.contains('open');
   document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
   if (!isOpen) item.classList.add('open');
+}
+</script>
+<!-- PayPal SDK -->
+<script src="https://www.paypal.com/sdk/js?client-id=AeI-KS_-t-tW98YJkYwtajqjywPRiye53pQPpJdEUU2WhSBNOA4SH9byHGKr35V36n6qfNYY1nyJRfri&currency=USD&intent=capture&vault=true&components=buttons" data-sdk-integration-source="button-factory"></script>
+<script>
+// ==================== PayPal 积分包 ====================
+const PACK_MAP = { 15: 'pack_15', 50: 'pack_50', 120: 'pack_120' };
+
+function initPayPalButtons() {
+  if (typeof paypal === 'undefined') return;
+  [15, 50, 120].forEach(credits => {
+    const containerId = `paypal-pack-${credits}`;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    paypal.Buttons({
+      style: { layout: 'horizontal', color: 'gold', shape: 'rect', label: 'pay', height: 36, tagline: false },
+      createOrder: async () => {
+        if (!currentUser) { loginOverlay.classList.remove('hide'); throw new Error('Not logged in'); }
+        const res = await fetch(API_URL + '/api/paypal/create-order', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + currentUser.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ packId: PACK_MAP[credits] }),
+        });
+        const data = await res.json();
+        if (!data.orderId) throw new Error(data.error || 'Failed to create order');
+        return data.orderId;
+      },
+      onApprove: async (data) => {
+        const res = await fetch(API_URL + '/api/paypal/capture-order', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + currentUser.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: data.orderID }),
+        });
+        const result = await res.json();
+        if (result.success) {
+          updateCreditsBadge(result.credits);
+          showToast(`✅ Payment successful! +${result.added} credits added.`);
+        } else {
+          showToast('❌ Payment captured but credits failed. Contact support.', 'error');
+        }
+      },
+      onError: (err) => {
+        console.error('PayPal error:', err);
+        showToast('❌ Payment failed. Please try again.', 'error');
+      },
+      onCancel: () => showToast('Payment cancelled.', 'info'),
+    }).render('#' + containerId);
+  });
+}
+
+// ==================== 订阅支付 ====================
+async function startSubscription(planId) {
+  if (!currentUser) { loginOverlay.classList.remove('hide'); return; }
+  const btn = document.querySelector(`[data-plan="${planId}"]`);
+  if (btn) { btn.textContent = 'Loading...'; btn.disabled = true; }
+  try {
+    const res = await fetch(API_URL + '/api/paypal/create-subscription', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentUser.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId }),
+    });
+    const data = await res.json();
+    if (data.approveUrl) {
+      window.open(data.approveUrl, '_blank');
+    } else {
+      showToast('❌ Failed to start subscription. ' + (data.error || ''), 'error');
+    }
+  } catch (e) {
+    showToast('❌ Network error. Please try again.', 'error');
+  } finally {
+    if (btn) { btn.textContent = 'Subscribe'; btn.disabled = false; }
+  }
+}
+
+// ==================== Toast 通知 ====================
+function showToast(msg, type = 'success') {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:12px 24px;border-radius:10px;font-size:14px;z-index:9999;max-width:90%;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.3);transition:opacity .3s';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.background = type === 'error' ? '#ef4444' : type === 'info' ? '#667eea' : '#22c55e';
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3500);
+}
+
+// ==================== URL 支付回调处理 ====================
+(function checkPaymentReturn() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('payment') === 'success') {
+    showToast('✅ Payment successful! Your credits will be updated shortly.');
+    fetchCredits();
+    history.replaceState({}, '', window.location.pathname);
+  } else if (params.get('subscription') === 'success') {
+    showToast('✅ Subscription activated! Credits will be added shortly.');
+    fetchCredits();
+    history.replaceState({}, '', window.location.pathname);
+  }
+})();
+
+// PayPal SDK 加载后初始化按钮
+if (typeof paypal !== 'undefined') {
+  initPayPalButtons();
+} else {
+  document.querySelector('script[src*="paypal.com/sdk"]').addEventListener('load', initPayPalButtons);
 }
 </script>
 </body>

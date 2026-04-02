@@ -1,3 +1,16 @@
+// PayPal 套餐配置
+const CREDIT_PACKS = {
+  pack_15:  { credits: 15,  price: '1.99', description: '15 Credits Pack' },
+  pack_50:  { credits: 50,  price: '4.99', description: '50 Credits Pack' },
+  pack_120: { credits: 120, price: '9.99', description: '120 Credits Pack' },
+};
+
+const SUBSCRIPTION_PLANS = {
+  starter: { credits: 50,  price: '4.99',  description: 'Starter Plan - 50 credits/month' },
+  pro:     { credits: 150, price: '9.99',  description: 'Pro Plan - 150 credits/month' },
+  team:    { credits: 500, price: '24.99', description: 'Team Plan - 500 credits/month' },
+};
+
 export default {
   async fetch(request, env) {
     const corsHeaders = {
@@ -12,14 +25,34 @@ export default {
 
     const url = new URL(request.url);
 
-    // GET /api/user/credits - 查询用户积分信息
+    // GET /api/user/credits
     if (request.method === 'GET' && url.pathname === '/api/user/credits') {
       return handleGetCredits(request, env, corsHeaders);
     }
 
-    // POST /api/remove-bg - 主处理接口
+    // POST /api/remove-bg
     if (request.method === 'POST' && (url.pathname === '/' || url.pathname === '/api/remove-bg')) {
       return handleRemoveBg(request, env, corsHeaders);
+    }
+
+    // POST /api/paypal/create-order - 创建一次性积分包订单
+    if (request.method === 'POST' && url.pathname === '/api/paypal/create-order') {
+      return handleCreateOrder(request, env, corsHeaders);
+    }
+
+    // POST /api/paypal/capture-order - 捕获/完成订单
+    if (request.method === 'POST' && url.pathname === '/api/paypal/capture-order') {
+      return handleCaptureOrder(request, env, corsHeaders);
+    }
+
+    // POST /api/paypal/create-subscription - 创建订阅
+    if (request.method === 'POST' && url.pathname === '/api/paypal/create-subscription') {
+      return handleCreateSubscription(request, env, corsHeaders);
+    }
+
+    // POST /api/paypal/subscription-webhook - PayPal 订阅回调
+    if (request.method === 'POST' && url.pathname === '/api/paypal/subscription-webhook') {
+      return handleSubscriptionWebhook(request, env, corsHeaders);
     }
 
     return new Response('Not found', { status: 404 });
@@ -177,4 +210,267 @@ function jsonResponse(data, status, corsHeaders) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+// ==================== PayPal 工具函数 ====================
+
+async function getPayPalAccessToken(env) {
+  const baseUrl = env.PAYPAL_MODE === 'sandbox'
+    ? 'https://api-m.sandbox.paypal.com'
+    : 'https://api-m.paypal.com';
+
+  const auth = btoa(`${env.PAYPAL_CLIENT_ID}:${env.PAYPAL_CLIENT_SECRET}`);
+  const res = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  const data = await res.json();
+  return { token: data.access_token, baseUrl };
+}
+
+// ==================== 一次性积分包支付 ====================
+
+async function handleCreateOrder(request, env, corsHeaders) {
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders);
+
+    const body = await request.json();
+    const { packId } = body;
+    const pack = CREDIT_PACKS[packId];
+    if (!pack) return jsonResponse({ error: 'Invalid pack' }, 400, corsHeaders);
+
+    const { token, baseUrl } = await getPayPalAccessToken(env);
+
+    const order = await fetch(`${baseUrl}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: pack.price },
+          description: pack.description,
+          custom_id: packId,
+        }],
+        application_context: {
+          brand_name: 'Background Remover',
+          user_action: 'PAY_NOW',
+          return_url: 'https://image-background-remover.shop/?payment=success',
+          cancel_url: 'https://image-background-remover.shop/?payment=cancelled',
+        },
+      }),
+    });
+
+    const orderData = await order.json();
+    return jsonResponse({ orderId: orderData.id }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
+}
+
+async function handleCaptureOrder(request, env, corsHeaders) {
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders);
+
+    const token_str = authHeader.replace('Bearer ', '');
+    const userData = JSON.parse(atob(token_str.split('.')[1]));
+    const user = await getOrCreateUser(env, userData);
+
+    const body = await request.json();
+    const { orderId } = body;
+
+    const { token, baseUrl } = await getPayPalAccessToken(env);
+
+    // 先查询订单
+    const orderRes = await fetch(`${baseUrl}/v2/checkout/orders/${orderId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const orderData = await orderRes.json();
+
+    if (orderData.status === 'COMPLETED') {
+      return jsonResponse({ error: 'Order already captured' }, 400, corsHeaders);
+    }
+
+    // 捕获支付
+    const captureRes = await fetch(`${baseUrl}/v2/checkout/orders/${orderId}/capture`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const captureData = await captureRes.json();
+
+    if (captureData.status !== 'COMPLETED') {
+      return jsonResponse({ error: 'Payment failed', details: captureData }, 400, corsHeaders);
+    }
+
+    // 检查是否重复处理
+    const existing = await env.DB.prepare(
+      "SELECT id FROM credit_transactions WHERE type='purchase' AND note LIKE ?"
+    ).bind(`%${orderId}%`).first();
+    if (existing) {
+      return jsonResponse({ error: 'Order already processed' }, 400, corsHeaders);
+    }
+
+    // 找出购买的套餐
+    const packId = orderData.purchase_units[0]?.custom_id;
+    const pack = CREDIT_PACKS[packId];
+    if (!pack) return jsonResponse({ error: 'Invalid pack in order' }, 400, corsHeaders);
+
+    // 充值积分
+    await env.DB.prepare(
+      'UPDATE users SET credits = credits + ? WHERE id = ?'
+    ).bind(pack.credits, user.id).run();
+
+    await env.DB.prepare(
+      `INSERT INTO credit_transactions (user_id, amount, type, note)
+       VALUES (?, ?, 'purchase', ?)`
+    ).bind(user.id, pack.credits, `PayPal order ${orderId} - ${pack.description}`).run();
+
+    const updated = await env.DB.prepare('SELECT credits FROM users WHERE id = ?').bind(user.id).first();
+    return jsonResponse({ success: true, credits: updated.credits, added: pack.credits }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
+}
+
+// ==================== 订阅支付 ====================
+
+async function handleCreateSubscription(request, env, corsHeaders) {
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders);
+
+    const body = await request.json();
+    const { planId } = body;
+    const plan = SUBSCRIPTION_PLANS[planId];
+    if (!plan) return jsonResponse({ error: 'Invalid plan' }, 400, corsHeaders);
+
+    const { token, baseUrl } = await getPayPalAccessToken(env);
+
+    // 创建 PayPal billing plan
+    const planRes = await fetch(`${baseUrl}/v1/billing/plans`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({
+        product_id: await ensurePayPalProduct(token, baseUrl),
+        name: plan.description,
+        description: plan.description,
+        status: 'ACTIVE',
+        billing_cycles: [{
+          frequency: { interval_unit: 'MONTH', interval_count: 1 },
+          tenure_type: 'REGULAR',
+          sequence: 1,
+          total_cycles: 0,
+          pricing_scheme: {
+            fixed_price: { value: plan.price, currency_code: 'USD' },
+          },
+        }],
+        payment_preferences: {
+          auto_bill_outstanding: true,
+          setup_fee: { value: '0', currency_code: 'USD' },
+          setup_fee_failure_action: 'CONTINUE',
+          payment_failure_threshold: 3,
+        },
+      }),
+    });
+    const planData = await planRes.json();
+
+    // 创建订阅
+    const subRes = await fetch(`${baseUrl}/v1/billing/subscriptions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({
+        plan_id: planData.id,
+        custom_id: planId,
+        application_context: {
+          brand_name: 'Background Remover',
+          user_action: 'SUBSCRIBE_NOW',
+          return_url: 'https://image-background-remover.shop/?subscription=success',
+          cancel_url: 'https://image-background-remover.shop/?subscription=cancelled',
+        },
+      }),
+    });
+    const subData = await subRes.json();
+
+    const approveLink = subData.links?.find(l => l.rel === 'approve')?.href;
+    return jsonResponse({ subscriptionId: subData.id, approveUrl: approveLink }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
+}
+
+async function ensurePayPalProduct(token, baseUrl) {
+  // 创建或复用产品
+  const res = await fetch(`${baseUrl}/v1/catalogs/products`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+    },
+    body: JSON.stringify({
+      name: 'Background Remover Credits',
+      description: 'AI Background Removal Service',
+      type: 'SERVICE',
+      category: 'SOFTWARE',
+    }),
+  });
+  const data = await res.json();
+  return data.id;
+}
+
+// ==================== 订阅 Webhook ====================
+
+async function handleSubscriptionWebhook(request, env, corsHeaders) {
+  try {
+    const event = await request.json();
+    const eventType = event.event_type;
+
+    if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' || eventType === 'PAYMENT.SALE.COMPLETED') {
+      const subscriptionId = event.resource?.id || event.resource?.billing_agreement_id;
+      const customId = event.resource?.custom_id || event.resource?.plan_id;
+      const plan = SUBSCRIPTION_PLANS[customId];
+
+      if (plan && subscriptionId) {
+        // 查找用户（通过订阅ID匹配）
+        const user = await env.DB.prepare(
+          'SELECT * FROM users WHERE subscription_plan = ?'
+        ).bind(subscriptionId).first();
+
+        if (user) {
+          const now = new Date();
+          const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+          await env.DB.prepare(
+            `UPDATE users SET credits = credits + ?, subscription_plan = ?, subscription_reset_date = ? WHERE id = ?`
+          ).bind(plan.credits, customId, resetDate.toISOString().split('T')[0], user.id).run();
+
+          await env.DB.prepare(
+            `INSERT INTO credit_transactions (user_id, amount, type, note) VALUES (?, ?, 'subscription', ?)`
+          ).bind(user.id, plan.credits, `Monthly subscription renewal - ${plan.description}`).run();
+        }
+      }
+    }
+
+    return jsonResponse({ received: true }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
