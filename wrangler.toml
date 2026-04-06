@@ -11,4 +11,4 @@ database_id = "f6e400d9-d1a1-4ac3-8f58-c6ff111b445c"
 # REMOVE_BG_API_KEY = "你的 Remove.bg API Key"
 
 [vars]
-# 可选的公开变量
+PAYPAL_MODE = "live"
